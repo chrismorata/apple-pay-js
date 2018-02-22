@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js lt-ie9" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    
+    <title></title>
+    
+    <style type="text/css">
+        * { margin: 0; padding: 0; list-style: none; }
+        body{ text-align: center; padding: 60px; font-family: -apple-system, BlinkMacSystemFont; }
+        h1{ margin: 2em 0; font-size: 3em; }
+
+        .apple-pay-button {
+            display: inline-block;
+            padding: 2em;
+            width: 200px;
+            cursor: pointer;
+            -webkit-appearance: -apple-pay-button;
+        }
+        .apple-pay-button-black {
+            -apple-pay-button-style: black;
+        }
+        .apple-pay-button-white {
+            -apple-pay-button-style: white;
+        }
+        
+        .apple-pay-button-white-with-line {
+            -apple-pay-button-style: white-outline;
+        }
+
+        .hidden{ display: none; }
+    </style>
+</head>
+
+<body>
+    <h1>Apple Pay Example</h1>
+    <button class="apple-pay-button js-apple-pay-button hidden"></button>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+        var PaymentRequest = {
+            currencyCode : 'USD',
+            countryCode : 'US',
+            requiredBillingContactFields : ['postalAddress'],
+            requiredShippingContactFields : ['name', 'email'],
+            supportedNetworks : ['amex', 'discover', 'masterCard', 'visa'],
+            merchantCapabilities : ['supportsCredit', 'supportsDebit', 'supports3DS'],
+            total : {
+                label : 'Total',
+                amount : 10.00
+            }
+        };
+
+        // does this browser support Apple Pay
+        if ( window.ApplePaySession ) {
+            // use the merchant provided by Apple in your developer account
+            var promise = ApplePaySession.canMakePaymentsWithActiveCard('merchant.website.com');
+
+            // verify that Apple Pay is accepted
+            promise.then(function(canMakePayments){
+                if ( canMakePayments ) {
+                    $('.js-apple-pay-button').removeClass('hidden');
+                } else {
+                    console.log('Apple Pay is not supported.');
+                }
+            });
+
+            $('.js-apple-pay-button').on('click', function(e){
+                // preventing form submission
+                e.preventDefault();
+
+                // create Apple Pay session
+                var PaymentSession = new ApplePaySession(2, PaymentRequest);
+
+                // merchant validation
+                // ApplePay documentation: https://developer.apple.com/documentation/applepayjs/providing_merchant_validation
+                // Example PHP file: https://github.com/norfolkmustard/ApplePayJS/blob/master/apple_pay_comm.php
+                PaymentSession.onvalidatemerchant = function(event){
+                    var promise = new Promise(function(resolve, reject){
+                        // AJAX call to backend to validate merchant goes here
+                        // response should be JSON-encoded
+                        $.ajax({
+                            url : 'path/to/merchantvalidation',
+                            success : function(response){
+                                resolve(JSON.parse(response));
+                            }
+                        });
+                    });
+
+                    // once the merchant is validated, the payment sheet is displayed
+                    promise.then(function(merchantSession){
+                        PaymentSession.completeMerchantValidation(merchantSession);
+                    });
+                };
+
+                // payment method selection
+                PaymentSession.onpaymentmethodselected = function(event){
+                    PaymentSession.completePaymentMethodSelection({ type: 'final', label: 'Total', amount: 10.00 }, [{ type: 'final', label: 'Subtotal', amount: 10.00 }]);
+                };
+
+                // payment method authorization
+                // once payment is authorized, it will return an object that contains the payment token for your processor
+                PaymentSession.onpaymentauthorized = function(event){
+                    console.log(event);
+
+                    // add some logic here to work with your payment processor
+
+                    // complete payment session
+                    PaymentSession.completePayment(ApplePaySession.STATUS_SUCCESS);
+                };  
+
+                // gentlemen, start your engines
+                PaymentSession.begin();
+            });
+        } else {
+            console.log('Apple Pay is not supported.');
+        }
+    </script>
+
+</body>
+</html>
