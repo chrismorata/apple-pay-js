@@ -84,7 +84,7 @@
                         // AJAX call to backend to validate merchant goes here
                         // response should be JSON-encoded
                         $.ajax({
-                            url : 'path/to/merchantvalidation?url=' + event.validationURL',
+                            url : 'path/to/merchantvalidation?url=' + event.validationURL,
                             success : function(response){
                                 resolve(JSON.parse(response));
                             }
